@@ -11,190 +11,19 @@ datasource db {
 }
 
 // ============================================
-// Authentication Models (NextAuth.js)
+// Enums
 // ============================================
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String  @map("user_id")
-  type              String
-  provider          String
-  providerAccountId String  @map("provider_account_id")
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique @map("session_token")
-  userId       String   @map("user_id")
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
-}
-
-// ============================================
-// User & Organization Models
-// ============================================
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime? @map("email_verified")
-  image         String?
-  password      String?
-  role          UserRole  @default(USER)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  accounts         Account[]
-  sessions         Session[]
-  organizationUsers OrganizationUser[]
-  assignedTasks    Task[]            @relation("AssignedTasks")
-  createdTasks     Task[]            @relation("CreatedTasks")
-  createdDeals     Deal[]            @relation("CreatedDeals")
-  notes            Note[]
-  comments         Comment[]
-  notifications    Notification[]
-  activityLogs     ActivityLog[]
-
-  @@map("users")
-}
 
 enum UserRole {
   ADMIN
-  USER
-  VIEWER
+  ATTORNEY
+  CLIENT
 }
 
-model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  logo      String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  users   OrganizationUser[]
-  clients Client[]
-  deals   Deal[]
-
-  @@map("organizations")
-}
-
-model OrganizationUser {
-  id             String           @id @default(cuid())
-  userId         String           @map("user_id")
-  organizationId String           @map("organization_id")
-  role           OrganizationRole @default(MEMBER)
-  createdAt      DateTime         @default(now()) @map("created_at")
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId])
-  @@map("organization_users")
-}
-
-enum OrganizationRole {
-  OWNER
-  ADMIN
-  MEMBER
-  VIEWER
-}
-
-// ============================================
-// Client Models
-// ============================================
-
-model Client {
-  id             String   @id @default(cuid())
-  organizationId String   @map("organization_id")
-  name           String
-  email          String?
-  phone          String?
-  company        String?
-  address        String?
-  notes          String?  @db.Text
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  deals        Deal[]
-
-  @@map("clients")
-}
-
-// ============================================
-// Deal Models
-// ============================================
-
-model Deal {
-  id             String     @id @default(cuid())
-  organizationId String     @map("organization_id")
-  clientId       String?    @map("client_id")
-  createdById    String     @map("created_by_id")
-  name           String
-  description    String?    @db.Text
-  propertyType   PropertyType
-  transactionType TransactionType
-  status         DealStatus @default(ACTIVE)
-  priority       Priority   @default(MEDIUM)
-
-  // Property Details
-  propertyAddress String?   @map("property_address")
-  propertyCity    String?   @map("property_city")
-  propertyState   String?   @map("property_state")
-  propertyZip     String?   @map("property_zip")
-
-  // Financial
-  purchasePrice   Decimal?  @map("purchase_price") @db.Decimal(15, 2)
-  earnestMoney    Decimal?  @map("earnest_money") @db.Decimal(15, 2)
-
-  // Key Dates
-  contractDate    DateTime? @map("contract_date")
-  dueDiligenceEnd DateTime? @map("due_diligence_end")
-  closingDate     DateTime? @map("closing_date")
-
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  createdBy    User         @relation("CreatedDeals", fields: [createdById], references: [id])
-  tasks        Task[]
-  documents    Document[]
-  notes        Note[]
-  milestones   Milestone[]
-  activityLogs ActivityLog[]
-
-  @@index([organizationId])
-  @@index([status])
-  @@map("deals")
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
 }
 
 enum PropertyType {
@@ -233,6 +62,257 @@ enum Priority {
   URGENT
 }
 
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum DocumentCategory {
+  CONTRACT
+  AMENDMENT
+  TITLE
+  SURVEY
+  ENVIRONMENTAL
+  FINANCIAL
+  LEGAL
+  CORRESPONDENCE
+  OTHER
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE
+  TASK_COMPLETED
+  DEAL_UPDATE
+  COMMENT_ADDED
+  DOCUMENT_UPLOADED
+  DEADLINE_APPROACHING
+  SYSTEM
+}
+
+// ============================================
+// Authentication Models (NextAuth.js)
+// ============================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  createdAt    DateTime @default(now()) @map("created_at")
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expires   DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+// ============================================
+// User & Firm Models
+// ============================================
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String
+  passwordHash  String     @map("password_hash")
+  role          UserRole   @default(CLIENT)
+  status        UserStatus @default(PENDING)
+  avatar        String?
+  phone         String?
+  title         String?    // Job title
+  emailVerified DateTime?  @map("email_verified")
+
+  // Firm relationship (for attorneys)
+  firmId String? @map("firm_id")
+  firm   Firm?   @relation(fields: [firmId], references: [id])
+
+  // Client relationship (for client users)
+  clientId String?  @map("client_id")
+  client   Client?  @relation("ClientUsers", fields: [clientId], references: [id])
+
+  // Activity tracking
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // Relations
+  accounts            Account[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  managedClients      ClientUser[]          @relation("AttorneyClients")
+  createdDeals        Deal[]                @relation("CreatedDeals")
+  assignedTasks       Task[]                @relation("AssignedTasks")
+  createdTasks        Task[]                @relation("CreatedTasks")
+  notes               Note[]
+  comments            Comment[]
+  notifications       Notification[]
+  activityLogs        ActivityLog[]
+
+  @@index([firmId])
+  @@index([clientId])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Firm {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  address   String?
+  phone     String?
+  website   String?
+  logo      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users   User[]
+  clients Client[]
+
+  @@map("firms")
+}
+
+// ============================================
+// Client Models
+// ============================================
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  type      String?  // Corporation, LLC, Partnership, etc.
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Firm relationship
+  firmId String @map("firm_id")
+  firm   Firm   @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  // Relations
+  users             User[]       @relation("ClientUsers") // Client portal users
+  managingAttorneys ClientUser[] @relation("ClientAttorneys")
+  deals             Deal[]
+
+  @@index([firmId])
+  @@map("clients")
+}
+
+// Junction table for attorney-client relationships
+model ClientUser {
+  id         String   @id @default(cuid())
+  attorneyId String   @map("attorney_id")
+  clientId   String   @map("client_id")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  attorney User   @relation("AttorneyClients", fields: [attorneyId], references: [id], onDelete: Cascade)
+  client   Client @relation("ClientAttorneys", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([attorneyId, clientId])
+  @@map("client_users")
+}
+
+// ============================================
+// Deal Models
+// ============================================
+
+model Deal {
+  id          String          @id @default(cuid())
+  clientId    String          @map("client_id")
+  createdById String          @map("created_by_id")
+  name        String
+  description String?         @db.Text
+  propertyType PropertyType
+  transactionType TransactionType
+  status      DealStatus      @default(ACTIVE)
+  priority    Priority        @default(MEDIUM)
+
+  // Property Details
+  propertyAddress String? @map("property_address")
+  propertyCity    String? @map("property_city")
+  propertyState   String? @map("property_state")
+  propertyZip     String? @map("property_zip")
+  propertyCounty  String? @map("property_county")
+
+  // Financial
+  purchasePrice Decimal? @map("purchase_price") @db.Decimal(15, 2)
+  earnestMoney  Decimal? @map("earnest_money") @db.Decimal(15, 2)
+
+  // Key Dates
+  contractDate    DateTime? @map("contract_date")
+  dueDiligenceEnd DateTime? @map("due_diligence_end")
+  closingDate     DateTime? @map("closing_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("CreatedDeals", fields: [createdById], references: [id])
+  tasks        Task[]
+  documents    Document[]
+  notes        Note[]
+  milestones   Milestone[]
+  activityLogs ActivityLog[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdById])
+  @@map("deals")
+}
+
 // ============================================
 // Task Models
 // ============================================
@@ -253,8 +333,8 @@ model Task {
   completedAt DateTime?  @map("completed_at")
   sortOrder   Int        @default(0) @map("sort_order")
 
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   deal      Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
@@ -271,25 +351,16 @@ model Task {
   @@map("tasks")
 }
 
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  BLOCKED
-  COMPLETED
-  CANCELLED
-}
-
 model Milestone {
-  id          String   @id @default(cuid())
-  dealId      String   @map("deal_id")
+  id          String    @id @default(cuid())
+  dealId      String    @map("deal_id")
   name        String
-  description String?  @db.Text
+  description String?   @db.Text
   dueDate     DateTime? @map("due_date")
   completedAt DateTime? @map("completed_at")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   deal  Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
   tasks Task[]
@@ -303,38 +374,26 @@ model Milestone {
 // ============================================
 
 model Document {
-  id          String         @id @default(cuid())
-  dealId      String         @map("deal_id")
+  id          String           @id @default(cuid())
+  dealId      String           @map("deal_id")
   name        String
   description String?
-  fileUrl     String         @map("file_url")
-  fileType    String         @map("file_type")
-  fileSize    Int            @map("file_size")
+  fileUrl     String           @map("file_url")
+  fileType    String           @map("file_type")
+  fileSize    Int              @map("file_size")
   category    DocumentCategory
-  uploadedAt  DateTime       @default(now()) @map("uploaded_at")
+  uploadedAt  DateTime         @default(now()) @map("uploaded_at")
 
   // AI Analysis
-  aiSummary   String?        @map("ai_summary") @db.Text
-  aiExtractedData Json?      @map("ai_extracted_data")
-  analyzedAt  DateTime?      @map("analyzed_at")
+  aiSummary       String?   @map("ai_summary") @db.Text
+  aiExtractedData Json?     @map("ai_extracted_data")
+  analyzedAt      DateTime? @map("analyzed_at")
 
   deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   @@index([dealId])
   @@index([category])
   @@map("documents")
-}
-
-enum DocumentCategory {
-  CONTRACT
-  AMENDMENT
-  TITLE
-  SURVEY
-  ENVIRONMENTAL
-  FINANCIAL
-  LEGAL
-  CORRESPONDENCE
-  OTHER
 }
 
 // ============================================
@@ -391,17 +450,6 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
-}
-
-enum NotificationType {
-  TASK_ASSIGNED
-  TASK_DUE
-  TASK_COMPLETED
-  DEAL_UPDATE
-  COMMENT_ADDED
-  DOCUMENT_UPLOADED
-  DEADLINE_APPROACHING
-  SYSTEM
 }
 
 model ActivityLog {
