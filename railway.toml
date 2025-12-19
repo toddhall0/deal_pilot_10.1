@@ -2,10 +2,6 @@
 builder = "nixpacks"
 buildCommand = "npm run build"
 
-[build.nixpacks]
-# Use Node.js 20 (required by Next.js 16 and Prisma 7)
-nodeVersion = "20"
-
 [deploy]
 # Run database migrations before starting the app
 startCommand = "npm run db:migrate:prod && npm run start"
