@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build"
+
+[deploy]
+# Run database migrations before starting the app
+startCommand = "npm run db:migrate:prod && npm run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
